@@ -1,0 +1,130 @@
+<html>
+<head class="head">
+<link href='//fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
+<style>
+body {
+    font-family: 'Roboto', sans-serif;
+}
+.container {
+    display: flex;
+    width: 100%;
+    background-color: #d1c4e9;
+    flex-wrap: wrap;
+    align-content: flex-start;
+}
+.box {
+    width: 300px;
+    height: 250px;
+    border: 2px solid #3f51b5;
+    border-radius: 5px;
+    margin: 10px;
+    overflow: scroll;
+    text-align: center;
+    color: white;
+    background-color: #311b92;
+    resize: both;
+}
+.box:hover {
+    border-color: #e00032;
+}
+.image {
+    transition: all 100ms ease-in-out;
+}
+.image:hover {
+    transform: scale(1.15,1.15) translateY(7%);
+}
+.butt {
+    position: relative;
+    left: 1px;
+    cursor: pointer;
+    font-size: 80%;
+    color: #00bcd4;
+}
+.query {
+    width: 70%;
+}
+.name {
+    width: 20%;
+}
+</style>
+<script>
+function bookmarks_load_callback(l) {
+    for(var k in l) {
+        localStorage.setItem(k, l[k]);
+    }
+    document.location = location.protocol + '//' + location.hostname + location.pathname;
+}
+function get_query_variable(variable)
+{
+       var query = window.location.search.substring(1);
+       var vars = query.split("&");
+       for (var i=0;i<vars.length;i++) {
+               var pair = vars[i].split("=");
+               if(pair[0] == variable){return pair[1];}
+       }
+       return(false);
+}
+function load_bookmarks() {
+    var bookmarks = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    for(var v in bookmarks) {
+        var bv = bookmarks[v];
+        if(get_query_variable(bv)) {
+            var sc = document.createElement("script");
+            sc.setAttribute("src", get_query_variable(bv))
+            document.getElementsByClassName("head")[0].appendChild(sc);
+        }
+    }
+}
+function add_new() {
+    var name = document.getElementById('name').value;
+    var query = document.getElementById('query').value;
+    localStorage.setItem(name, query);
+    draw_boxes();
+}
+function edit(name, url) {
+    document.getElementById('name').value = name;
+    document.getElementById('query').value = url;
+}
+function drop(name) {
+    localStorage.removeItem(name);
+    draw_boxes();
+}
+function draw_boxes() {
+    load_bookmarks();
+    var html = "";
+    for(name in localStorage) {
+        var url = localStorage.getItem(name);
+        html += "<div class='box'>" + name;
+        html += "<span class='butt' onclick='edit(\"" + name+ "\", \"" + url + "\")'>(edit)</span>";
+        html += "<span class='butt' onclick='drop(\"" + name+ "\")'>(del)</span>";
+        html += "<br><a href='" + url + "' target='_blank'><img class='image' src='" + url + "'></a></div>";
+    }
+    var container = document.getElementById('container');
+    container.innerHTML = html;
+}
+function update_images() {
+    var images = document.getElementsByClassName('image');
+    for(var i=0; i < images.length; i++){
+        if(images[i].src.indexOf('?') == -1) {
+            images[i].src = images[i].src + '?s';
+        } else {
+            images[i].src = images[i].src + '&s';
+        }
+    }
+}
+function init() {
+    draw_boxes();
+    setInterval(update_images, 300000);
+}
+</script>
+</head>
+<body onload="init()">
+<div>
+  <input type='text' placeholder='Header' class='name' id='name'>
+  <input type='text' placeholder='Chart URL' class='query' id='query'>
+  <button onclick="add_new()">CREATE CHART</button>
+</div>
+<div class='container' id='container'>
+</div>
+</body>
+</html>
