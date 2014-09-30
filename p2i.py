@@ -35,20 +35,20 @@ def proc_data(p, name):
 def sys_data():
     cpu = lambda: dict(map(lambda a: ('cpu_' + str(a[0]), a[1]), enumerate(psutil.cpu_percent(percpu=True))))
     mem = lambda: dict(map(lambda a: ('mem_' + str(a[0]), a[1] / (1024 * 1024)), psutil.virtual_memory()._asdict().items()))
-    def disk():
-        tor = {}
-        for hdd, info in psutil.disk_io_counters(perdisk=True).items():
-            for k, v in info._asdict().items():
-                tor['hdd_' + hdd + '_' + k] = v
-        return tor
-    
-    tor = {'cpu_total': psutil.cpu_percent(percpu=False)}
-    #for call in (cpu, mem, disk):
+    tor = {'cpu_percent': psutil.cpu_percent(percpu=False)}
     for call in (cpu, mem):
         tor.update(call())
     tor['mem_percent'] = tor['mem_percent'] * 1024 * 1024
     return tor
 
+def disk_data():
+    tor = {}
+    for hdd, info in psutil.disk_io_counters(perdisk=True).items():
+       for k, v in info._asdict().items():
+           tor['hdd_' + hdd + '_' + k] = v
+    return tor
+    
+ 
 def processes(pts, cache={}):
     for pid_files in pts:
         for pid_file in glob(pid_files):
@@ -74,7 +74,7 @@ def format_influx(message, name):
 
 def options():
     parser = ArgumentParser()
-    parser.add_argument("-s", "--source", dest="source", help="load pids from files")
+    parser.add_argument("-s", "--source", dest="source", default=None, help="load pids from files")
     parser.add_argument("-t", "--target", dest="host", help="send json/udp messages to target HOST", metavar="HOST", default="localhost")
     parser.add_argument("-p", "--port", dest="port", type=int, help="send json/udp messages to PORT", metavar="PORT", default=4444)
     parser.add_argument("-r", "--dry-run", dest="dry", action="store_true", help="do not send messages, just dump them on console", default=False)
@@ -88,14 +88,16 @@ sender = partial(logging.info, "%s %s") if dry else target.sendto
 
 while True:
     sender(format_influx(sys_data(), 'resources'), (host, port))
-    for path, proc in processes(pid_paths.split(',')):
-        name = path.split('/')[-1]
-        try:
-            sender(format_influx(proc_data(proc, name), 'processes'), (host, port))
-        except psutil.NoSuchProcess:
-            pass
-        except psutil.AccessDenied:
-            pass
-        finally:
-            pass
+    sender(format_influx(disk_data(), 'disks'), (host, port))
+    if pid_paths:
+        for path, proc in processes(pid_paths.split(',')):
+            name = path.split('/')[-1]
+            try:
+                sender(format_influx(proc_data(proc, name), 'processes'), (host, port))
+            except psutil.NoSuchProcess:
+                pass
+            except psutil.AccessDenied:
+                pass
+            finally:
+                pass
     sleep(5)
