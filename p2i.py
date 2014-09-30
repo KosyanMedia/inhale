@@ -16,17 +16,17 @@ def delta(name, current_value, cache={}, process=None):
     else:
         last_stamp, last_value = process.create_time() if process else psutil.boot_time(), 0
     cache[key] = (current_stamp, current_value)
-    return (current_value - last_value) / (current_stamp - last_stamp)
+    return round((current_value - last_value) / (current_stamp - last_stamp), 4)
 
 def deltas(counters, process=None, prefix=None):
     return dict(map(lambda c: (''.join((prefix, '_', c[0])) if prefix else c[0], delta(c[0], c[1], process=process)), counters.items()))
 
 def proc_data(p, name):
     cpu = lambda p:deltas(p.cpu_times()._asdict(), process=p, prefix='cpu')
-    cpup = lambda p:{'cpu_percent': p.cpu_percent()}
+    cpup = lambda p:{'cpu_percent': p.cpu_percent(), 'connection_count': len(p.connections()), 'pid': p.pid}
     io = lambda p:deltas(p.io_counters()._asdict(), process=p, prefix='io')
     ctx = lambda p:deltas(p.num_ctx_switches()._asdict(), process=p, prefix='ctx')
-    mem = lambda p:dict(map(lambda i: ('mem_' + i[0], i[1]), p.memory_info_ex()._asdict().items()))
+    mem = lambda p:dict(map(lambda i: ('mem_' + i[0], i[1] / (1024 * 1024)), p.memory_info_ex()._asdict().items()))
     tor = {'name': name}
     for call in (cpu, cpup, io, ctx, mem):
         tor.update(call(p))
@@ -34,7 +34,7 @@ def proc_data(p, name):
 
 def sys_data():
     cpu = lambda: dict(map(lambda a: ('cpu_' + str(a[0]), a[1]), enumerate(psutil.cpu_percent(percpu=True))))
-    mem = lambda: dict(map(lambda a: ('mem_' + str(a[0]), a[1]), psutil.virtual_memory()._asdict().items()))
+    mem = lambda: dict(map(lambda a: ('mem_' + str(a[0]), a[1] / (1024 * 1024)), psutil.virtual_memory()._asdict().items()))
     def disk():
         tor = {}
         for hdd, info in psutil.disk_io_counters(perdisk=True).items():
@@ -42,18 +42,22 @@ def sys_data():
                 tor['hdd_' + hdd + '_' + k] = v
         return tor
     
-    tor = {}
+    tor = {'cpu_total': psutil.cpu_percent(percpu=False)}
     #for call in (cpu, mem, disk):
     for call in (cpu, mem):
         tor.update(call())
+    tor['mem_percent'] = tor['mem_percent'] * 1024 * 1024
     return tor
 
-def processes(pts):
+def processes(pts, cache={}):
     for pid_files in pts:
         for pid_file in glob(pid_files):
             f = open(pid_file, 'r')
             try:
-                process = psutil.Process(int(f.read().replace("\n", "")))
+                pid = int(f.read().replace("\n", ""))
+                if pid not in cache:
+                    cache[pid] = psutil.Process(pid)
+                process = cache[pid]
                 yield pid_file, process
             except:
                 pass
@@ -88,6 +92,10 @@ while True:
         name = path.split('/')[-1]
         try:
             sender(format_influx(proc_data(proc, name), 'processes'), (host, port))
-        except:
+        except psutil.NoSuchProcess:
+            pass
+        except psutil.AccessDenied:
+            pass
+        finally:
             pass
     sleep(5)
