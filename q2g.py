@@ -12,6 +12,8 @@ from datetime import datetime
 import pygal
 from collections import OrderedDict
 import logging
+from re import match
+from pygal.style import *
 
 @tornado.gen.coroutine
 def select(host, port, login, password, db, query):
@@ -70,8 +72,16 @@ class SvgHandler(RequestHandler):
         response = yield select(ops.influx_host, ops.influx_port, 'root', 'root', series, query)
         series, cols, rows = parse_response(response, x_axis)
         x_points = rows.keys()
-        bar_chart = chart(x_label_rotation=45)
-        bar_chart.title = self.get_query_argument('header', series)
+        chart_params = {};
+        for name in self.request.arguments:
+            if name not in ('type', 'x', 'time_format'):
+                value = self.get_query_argument(name)
+                if name == 'style':
+                    value = globals()[value]
+                elif match(r"[\d-]+", value):
+                    value = int(value)
+                chart_params[name] = value
+        bar_chart = chart(**chart_params)
         if x_axis == 'time':
             bar_chart.x_labels = list(map(lambda uts: datetime.fromtimestamp(uts / 1000).strftime(time_format), x_points))
         else:
