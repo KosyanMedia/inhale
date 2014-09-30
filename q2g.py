@@ -22,7 +22,7 @@ def select(host, port, login, password, db, query):
     }
     params = urlencode(params)
     url = "http://{host}:{port}/db/{db}/series?{params}".format(host=host, port=port, db=db, query=query, params=params)
-    response = yield AsyncHTTPClient().fetch(url, method='GET', connection_timeout=60, request_timeout=120)
+    response = yield AsyncHTTPClient().fetch(url, method='GET', connect_timeout=60, request_timeout=120)
     return loads(response.body.decode('utf8'))[0]
 
 def parse_response(response, x_column='time'):
