@@ -28,7 +28,8 @@ def multi_follow(masks, splitter="\n", interval=1, jump=True, follow=True):
                     next
                 got = fd.tell()
                 if got > has: #truncated file
-                    fd.seek(0)
+                    fd.close()
+                    file_list[file] = open(file, 'r')
                 elif got < has:
                     # we can read line as two if read while full line is not written into file
                     data = fd.read(has - got)
