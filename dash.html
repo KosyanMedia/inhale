@@ -15,6 +15,8 @@ body {
 .box {
     width: 300px;
     height: 250px;
+    min-width: 50px;
+    min-height: 70px;
     border: 2px solid #3f51b5;
     border-radius: 5px;
     margin: 10px;
@@ -25,17 +27,12 @@ body {
     resize: both;
 }
 .box:hover {
-    border-color: #e00032;
+    border-color: #b388ff;
 }
 .image {
     transition: all 100ms ease-in-out;
 }
-.image:hover {
-    transform: scale(1.15,1.15) translateY(7%);
-}
 .butt {
-    position: relative;
-    left: 1px;
     cursor: pointer;
     font-size: 80%;
     color: #00bcd4;
@@ -46,39 +43,43 @@ body {
 .name {
     width: 20%;
 }
+.store {
+    font-size: 20%;
+    width: 100%;
+    overflow: hidden;
+}
 </style>
 <script>
 function bookmarks_load_callback(l) {
+    var key = location.protocol + '//' + location.hostname + location.pathname;
+    var storage = JSON.parse(localStorage.getItem(key)) || {};
     for(var k in l) {
-        localStorage.setItem(k, l[k]);
+        storage[k] = l[k];
     }
-    document.location = location.protocol + '//' + location.hostname + location.pathname;
-}
-function get_query_variable(variable)
-{
-       var query = window.location.search.substring(1);
-       var vars = query.split("&");
-       for (var i=0;i<vars.length;i++) {
-               var pair = vars[i].split("=");
-               if(pair[0] == variable){return pair[1];}
-       }
-       return(false);
+    localStorage.setItem(key, JSON.stringify(storage));
+    document.location = key;
 }
 function load_bookmarks() {
-    var bookmarks = ["a", "b", "c", "d", "e", "f", "g", "h"];
-    for(var v in bookmarks) {
-        var bv = bookmarks[v];
-        if(get_query_variable(bv)) {
-            var sc = document.createElement("script");
-            sc.setAttribute("src", get_query_variable(bv))
-            document.getElementsByClassName("head")[0].appendChild(sc);
+    var source = window.location.search.substring(1);
+    try {
+        var l = JSON.parse(decodeURI(source));
+        var storage = JSON.parse(localStorage.getItem(key)) || {};
+        for(k in l) {
+            storage[k] = l[k];
         }
+        localStorage.setItem(key, JSON.stringify(storage));
+        document.location = key;
+    } catch(e) {
+        var sc = document.createElement("script");
+        sc.setAttribute("src", source)
+        document.getElementsByClassName("head")[0].appendChild(sc);
     }
 }
 function add_new() {
     var name = document.getElementById('name').value;
     var query = document.getElementById('query').value;
-    localStorage.setItem(name, query);
+    storage[name] = query;
+    localStorage.setItem(key, JSON.stringify(storage));
     draw_boxes();
 }
 function edit(name, url) {
@@ -86,14 +87,16 @@ function edit(name, url) {
     document.getElementById('query').value = url;
 }
 function drop(name) {
-    localStorage.removeItem(name);
+    delete storage[name];
+    localStorage.setItem(key, JSON.stringify(storage));
     draw_boxes();
 }
 function draw_boxes() {
     load_bookmarks();
     var html = "";
-    for(name in localStorage) {
-        var url = localStorage.getItem(name);
+    this.storage = JSON.parse(localStorage.getItem(key)) || {};
+    for(name in storage) {
+        var url = storage[name];
         html += "<div class='box'>" + name;
         html += "<span class='butt' onclick='edit(\"" + name+ "\", \"" + url + "\")'>(edit)</span>";
         html += "<span class='butt' onclick='drop(\"" + name+ "\")'>(del)</span>";
@@ -101,6 +104,8 @@ function draw_boxes() {
     }
     var container = document.getElementById('container');
     container.innerHTML = html;
+    var s = document.getElementById('store');
+    s.innerHTML = localStorage.getItem(key);
 }
 function update_images() {
     var images = document.getElementsByClassName('image');
@@ -113,8 +118,9 @@ function update_images() {
     }
 }
 function init() {
+    this.key = location.protocol + '//' + location.hostname + location.pathname;
     draw_boxes();
-    setInterval(update_images, 300000);
+    setInterval(update_images, 120000);
 }
 </script>
 </head>
@@ -124,7 +130,7 @@ function init() {
   <input type='text' placeholder='Chart URL' class='query' id='query'>
   <button onclick="add_new()">CREATE CHART</button>
 </div>
-<div class='container' id='container'>
-</div>
+<div class='container' id='container'></div>
+<div class='store' id='store'></div>
 </body>
 </html>

@@ -33,11 +33,11 @@ def proc_data(p, name):
     return tor
 
 def sys_data():
-    cpu = lambda: dict(map(lambda a: ('cpu_' + str(a[0]), a[1]), enumerate(psutil.cpu_percent(percpu=True))))
-    mem = lambda: dict(map(lambda a: ('mem_' + str(a[0]), a[1] / (1024 * 1024)), psutil.virtual_memory()._asdict().items()))
+    cpu = dict(map(lambda a: ('cpu_' + str(a[0]), a[1]), enumerate(psutil.cpu_percent(percpu=True))))
+    mem = dict(map(lambda a: ('mem_' + str(a[0]), a[1] / (1024 * 1024)), psutil.virtual_memory()._asdict().items()))
     tor = {'cpu_percent': psutil.cpu_percent(percpu=False)}
-    for call in (cpu, mem):
-        tor.update(call())
+    for res in (cpu, mem):
+        tor.update(res)
     tor['mem_percent'] = tor['mem_percent'] * 1024 * 1024
     return tor
 
