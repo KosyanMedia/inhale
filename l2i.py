@@ -68,11 +68,11 @@ def load_config(data):
     config = {}
     for path, patterns in data.items():
         config[path] = []
-        for pattern in patterns:
+        for name, pattern in patterns.items():
             config[path].append({
                 'pattern': re.compile(pattern['regexp']),
                 'numeric_fields': pattern.get('numeric_fields', []),
-                'name': pattern.get('name', path),
+                'name': name,
                 'const': pattern.get('const', {}),
                 'eval': dict(map(lambda e: (e[0], compile(e[1], '<config>', 'eval')), pattern.get('eval', {}).items()))
             })

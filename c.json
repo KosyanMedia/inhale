@@ -1,7 +1,6 @@
 {
-    "f*.csv": [
-        {
-            "name": "log_lines_1",
+    "l*log": {
+        "log_lines_1": {
             "regexp": "(?P<value>.*?) (?P<name>.*)",
             "const": {
                 "host": "ubuntu"
@@ -9,5 +8,5 @@
             "numeric_fields": ["value"],
             "eval": {"val2": "value * 2"}
         }
-    ]
+    }
 }
