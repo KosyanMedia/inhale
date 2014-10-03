@@ -16,7 +16,7 @@ from re import match
 from pygal.style import *
 
 @tornado.gen.coroutine
-def select(host, port, login, password, db, query):
+def select(host, port, db, query, login='root', password='root', connect_timeout=60, request_timeout=120):
     params = {
         'u': login,
         'p': password,
@@ -24,7 +24,7 @@ def select(host, port, login, password, db, query):
     }
     params = urlencode(params)
     url = "http://{host}:{port}/db/{db}/series?{params}".format(host=host, port=port, db=db, query=query, params=params)
-    response = yield AsyncHTTPClient().fetch(url, method='GET', connect_timeout=60, request_timeout=120)
+    response = yield AsyncHTTPClient().fetch(url, method='GET', connect_timeout=connect_timeout, request_timeout=request_timeout)
     return loads(response.body.decode('utf8'))[0]
 
 def parse_response(response, x_column='time'):
@@ -44,7 +44,7 @@ def parse_response(response, x_column='time'):
 def options():
     parser = ArgumentParser()
     parser.add_argument("-o", "--host", dest="host", default="0.0.0.0", help="host to listen on")
-    parser.add_argument("-p", "--port", dest="port", type=int, help="send json/udp messages to PORT", default=8888)
+    parser.add_argument("-p", "--port", dest="port", type=int, help="port to listen on", default=8888)
     parser.add_argument("-i", "--influx-host", dest="influx_host", help="influxdb host", default="localhost")
     parser.add_argument("-m", "--influx-port", dest="influx_port", help="influxdb port", default=8086, type=int)
     return parser.parse_args()
@@ -65,17 +65,17 @@ class SvgHandler(RequestHandler):
     @tornado.gen.coroutine
     def get(self, series, query):
         logging.info(query)
-        x_axis = self.get_query_argument('x', 'time')
-        chart = chart_types[self.get_query_argument('type', 'line')]
-        time_format = self.get_query_argument('time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
-        self.set_header("Content-Type", 'image/svg+xml; вектор/хуектор')
-        response = yield select(ops.influx_host, ops.influx_port, 'root', 'root', series, query)
+        x_axis = self.get_argument('x', 'time')
+        chart = chart_types[self.get_argument('type', 'line')]
+        time_format = self.get_argument('q_time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
+        self.set_header("Content-Type", 'image/svg+xml')
+        response = yield select(ops.influx_host, ops.influx_port, series, query)
         series, cols, rows = parse_response(response, x_axis)
         x_points = rows.keys()
         chart_params = {};
         for name in self.request.arguments:
-            if name not in ('type', 'x', 'time_format'):
-                value = self.get_query_argument(name)
+            if name not in ('type', 'x', 'q_time_format'):
+                value = self.get_argument(name)
                 if name == 'style':
                     value = globals()[value]
                 elif match(r"[\d-]+", value):
