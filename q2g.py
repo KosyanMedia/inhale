@@ -67,14 +67,14 @@ class SvgHandler(RequestHandler):
         logging.info(query)
         x_axis = self.get_argument('x', 'time')
         chart = chart_types[self.get_argument('type', 'line')]
-        time_format = self.get_argument('q_time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
+        time_format = self.get_argument('time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
         self.set_header("Content-Type", 'image/svg+xml')
         response = yield select(ops.influx_host, ops.influx_port, series, query)
         series, cols, rows = parse_response(response, x_axis)
         x_points = rows.keys()
         chart_params = {};
         for name in self.request.arguments:
-            if name not in ('type', 'x', 'q_time_format'):
+            if name not in ('type', 'x', 'time_format'):
                 value = self.get_argument(name)
                 if name == 'style':
                     value = globals()[value]
@@ -85,7 +85,7 @@ class SvgHandler(RequestHandler):
         if x_axis == 'time':
             bar_chart.x_labels = list(map(lambda uts: datetime.fromtimestamp(uts / 1000).strftime(time_format), x_points))
         else:
-            bar_chart.x_labels = x_points
+            bar_chart.x_labels = list(map(str, x_points))
         for col in cols:
             bar_chart.add(col, list(map(lambda x: rows[x][col], x_points)))
         self.write(bar_chart.render())
