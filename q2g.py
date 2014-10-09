@@ -15,6 +15,7 @@ import logging
 from re import match
 from pygal.style import *
 from numbers import Number
+from traceback import format_exception
 
 @tornado.gen.coroutine
 def select_influx(host, port, db, query, login='root', password='root', connect_timeout=60, request_timeout=120):
@@ -96,6 +97,12 @@ select = {
     'mysql': select_mysql
 }[ops.db_type]
 
+def render_trace(tp, val, trace):
+    head = '<svg xmlns="http://www.w3.org/2000/svg">'
+    tail = '</svg>'
+    body = ''.join(list(map(lambda e: '<text x="5" y="' + str(e[0] * 20) + '">' + e[1].replace('<', '&lt;').replace('>', '&gt;') + '</text>', enumerate(format_exception(tp, val, trace), 1))))
+    return head + body + tail
+
 class SvgHandler(RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
@@ -105,27 +112,32 @@ class SvgHandler(RequestHandler):
         chart = chart_types[self.get_argument('type', 'line')]
         time_format = self.get_argument('time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
         self.set_header("Content-Type", 'image/svg+xml')
-        response = yield select(ops.db_host, ops.db_port, series, query, login=ops.db_login, password=ops.db_password)
-        series, cols, rows = parse_response(response, x_axis)
-        x_points = rows.keys()
-        chart_params = {};
-        for name in self.request.arguments:
-            if name not in ('type', 'x', 'time_format'):
-                value = self.get_argument(name)
-                if name == 'style':
-                    value = globals()[value]
-                elif match(r"[\d-]+", value):
-                    value = int(value)
-                chart_params[name] = value
-        bar_chart = chart(**chart_params)
-        if x_axis == 'time':
-            bar_chart.x_labels = list(map(lambda uts: datetime.fromtimestamp(uts / 1000).strftime(time_format), x_points))
-        else:
-            bar_chart.x_labels = list(map(str, x_points))
-        for col in cols:
-            bar_chart.add(col, list(map(lambda x: rows[x][col], x_points)))
-        self.write(bar_chart.render())
-        self.finish()
+        try:
+            response = yield select(ops.db_host, ops.db_port, series, query, login=ops.db_login, password=ops.db_password)
+            series, cols, rows = parse_response(response, x_axis)
+            x_points = rows.keys()
+            chart_params = {};
+            for name in self.request.arguments:
+                if name not in ('type', 'x', 'time_format'):
+                    value = self.get_argument(name)
+                    if name == 'style':
+                        value = globals()[value]
+                    elif match(r"[\d-]+", value):
+                        value = int(value)
+                    chart_params[name] = value
+            bar_chart = chart(**chart_params)
+            if x_axis == 'time':
+                bar_chart.x_labels = list(map(lambda uts: datetime.fromtimestamp(uts / 1000).strftime(time_format), x_points))
+            else:
+                bar_chart.x_labels = list(map(str, x_points))
+            for col in cols:
+                bar_chart.add(col, list(map(lambda x: rows[x][col], x_points)))
+            self.write(bar_chart.render())
+        except:
+            tp, value, traceback = sys.exc_info()
+            self.write(render_trace(tp, value, traceback))
+        finally:
+            self.finish()
 
 logging.basicConfig(level=logging.DEBUG)
 app = Application([
