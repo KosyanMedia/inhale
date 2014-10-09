@@ -16,6 +16,7 @@ from re import match
 from pygal.style import *
 from numbers import Number
 from traceback import format_exception
+from tornado.httpclient import HTTPError
 
 @tornado.gen.coroutine
 def select_influx(host, port, db, query, login='root', password='root', connect_timeout=60, request_timeout=120):
@@ -98,10 +99,15 @@ select = {
 }[ops.db_type]
 
 def render_trace(tp, val, trace):
+    html_escape = lambda x: x.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     head = '<svg xmlns="http://www.w3.org/2000/svg">'
     tail = '</svg>'
-    body = ''.join(list(map(lambda e: '<text x="5" y="' + str(e[0] * 20) + '">' + e[1].replace('<', '&lt;').replace('>', '&gt;') + '</text>', enumerate(format_exception(tp, val, trace), 1))))
-    return head + body + tail
+    stack_lines = format_exception(tp, val, trace)
+    stack= ''.join(list(map(lambda e: '<text x="5" y="' + str(e[0] * 20) + '">' + html_escape(e[1]) + '</text>', enumerate(stack_lines, 1))))
+    ex_type = '<text x="400" y="20">' + html_escape(str(tp)) + '</text>'
+    if isinstance(val, HTTPError):
+        ex_type = ex_type + ''.join(map(lambda v: '<text xml:space="preserve" x="5" y="' + str(len(stack_lines) * 20 + v[0] * 18 + 30)+ '" font-family="monospace">' + html_escape(v[1] )+ '</text>', enumerate(val.response.body.decode('utf8').split('\n'), 1)))
+    return head + stack + ex_type + tail
 
 class SvgHandler(RequestHandler):
     @tornado.web.asynchronous
