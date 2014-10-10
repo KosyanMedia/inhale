@@ -100,13 +100,13 @@ select = {
 
 def render_trace(tp, val, trace):
     html_escape = lambda x: x.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-    head = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#ff5722"></rect>'
+    head = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="100%" height="100%" fill="#ff5722"></rect>'
     tail = '</svg>'
     stack_lines = format_exception(tp, val, trace)
     stack= ''.join(list(map(lambda e: '<text x="5" y="' + str(e[0] * 20) + '" font-size="12">' + html_escape(e[1]) + '</text>', enumerate(stack_lines, 1))))
     ex_type = '<text x="180" y="20" font-size="14">' + html_escape(str(tp)) + '</text>'
-    if isinstance(val, HTTPError):
-        ex_type = ex_type + ''.join(map(lambda v: '<text xml:space="preserve" x="5" y="' + str(len(stack_lines) * 20 + v[0] * 18 + 30)+ '" font-family="monospace">' + html_escape(v[1] )+ '</text>', enumerate(val.response.body.decode('utf8').split('\n'), 1)))
+    if isinstance(val, HTTPError) and val.response:
+        ex_type = ex_type + ''.join(map(lambda v: '<text xml:space="preserve" font-size="14" x="5" y="' + str(len(stack_lines) * 20 + v[0] * 18 + 30)+ '" font-family="monospace">' + html_escape(v[1] )+ '</text>', enumerate(val.response.body.decode('utf8').split('\n'), 1)))
     return head + stack + ex_type + tail
 
 class SvgHandler(RequestHandler):
