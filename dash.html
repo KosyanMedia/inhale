@@ -5,7 +5,7 @@
 <link rel='stylesheet' href="jquery.gridster.min.css" type="text/css"></link>
 <script>
 function bookmarks_load_callback(l) {
-    var key = location.protocol + '//' + location.hostname + location.pathname;
+    var key = location.protocol + '//' + location.hostname + (location.port != "" ? ":" + location.port : "") + location.pathname;
     var storage = JSON.parse(localStorage.getItem(key)) || {};
     for(var k in l) {
         storage[k] = l[k];
