@@ -9,6 +9,7 @@ from argparse import ArgumentParser, FileType
 from socket import socket, AF_INET, SOCK_DGRAM
 from glob import glob
 from functools import reduce
+from signal import signal, SIGHUP
 
 def multi_follow(masks, splitter="\n", interval=1, jump=True, follow=True):
     files = dict(map(lambda g: (g, dict(map(lambda path: (path, open(path, 'r')), glob(g)))), masks))
@@ -79,21 +80,32 @@ def load_config(data):
     return config
 
 logging.basicConfig(level=logging.DEBUG)
-config, host, port, jump, follow, dry = options()
-patterns = load_config(config)
-target = socket(AF_INET, SOCK_DGRAM)
-sender = partial(logging.info, "%s %s") if dry else target.sendto
 
-for mask, path, line in multi_follow(patterns.keys(), jump=jump, follow=follow):
-    for pattern in patterns[mask]:
-        match = pattern['pattern'].match(line)
-        if match:
-            message = match.groupdict()
-            message['source'] = path.split('/')[-1]
-            for field in pattern['numeric_fields']:
-                message[field] = float(message[field])
-            for field, code in pattern['eval'].items():
-                message[field] = eval(code, None, message)
+need_to_reload = False
+def hup(f, s):
+    global need_to_reload
+    need_to_reload = True
 
-            sender(format_influx(message, pattern), (host, port))
+signal(SIGHUP, hup)
+
+while True:
+    config, host, port, jump, follow, dry = options()
+    patterns = load_config(config)
+    target = socket(AF_INET, SOCK_DGRAM)
+    sender = partial(logging.info, "%s %s") if dry else target.sendto
+    
+    for mask, path, line in multi_follow(patterns.keys(), jump=jump, follow=follow):
+        if need_to_reload:
             break
+        for pattern in patterns[mask]:
+            match = pattern['pattern'].match(line)
+            if match:
+                message = match.groupdict()
+                message['source'] = path.split('/')[-1]
+                for field in pattern['numeric_fields']:
+                    message[field] = float(message[field])
+                for field, code in pattern['eval'].items():
+                    message[field] = eval(code, None, message)
+    
+                sender(format_influx(message, pattern), (host, port))
+                break
