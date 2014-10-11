@@ -116,7 +116,7 @@ class SvgHandler(RequestHandler):
     def get(self, series, query):
         logging.info(query)
         x_axis = self.get_argument('x', 'time')
-        secondary = self.get_argument('secondary', None)
+        secondary = self.get_argument('secondary', '').split(',')
         chart = chart_types[self.get_argument('type', 'line')]
         time_format = self.get_argument('time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
         self.set_header("Content-Type", 'image/svg+xml')
@@ -142,7 +142,7 @@ class SvgHandler(RequestHandler):
                 bar_chart.x_labels = list(map(str, x_points))
             for col in cols:
                 points = list(map(lambda x: rows[x][col], x_points))
-                if col == secondary:
+                if col in secondary:
                     bar_chart.add(col, points, secondary=True)
                 else:
                     bar_chart.add(col, points)
