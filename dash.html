@@ -11,16 +11,14 @@ function bookmarks_load_callback(l) {
         storage[k] = l[k];
     }
     localStorage.setItem(key, JSON.stringify(storage));
-    document.location = key;
+    if(document.location != key) {
+        document.location = key;
+    }
 }
 function load_bookmarks() {
     var source = window.location.search.substring(1);
     try {
-        var l = JSON.parse(decodeURI(source));
-        var storage = JSON.parse(localStorage.getItem(key)) || {};
-        for(k in l) {
-            storage[k] = l[k];
-        }
+        eval(decodeURI(source));
         localStorage.setItem(key, JSON.stringify(storage));
         document.location = key;
     } catch(e) {
@@ -48,7 +46,6 @@ function drop(name) {
 
 var grids;
 function draw_boxes() {
-    load_bookmarks();
     var positions = JSON.parse(localStorage.getItem(key + '_positions')) || [];
     var pos = {};
     for(var i = 0; i < positions.length; i++) {
@@ -73,29 +70,28 @@ function draw_boxes() {
         }
     }
     var s = document.getElementById('store');
-    s.innerHTML = localStorage.getItem(key);
+    s.innerHTML = 'bookmarks_load_callback(' + localStorage.getItem(key) + ');';
 }
 function update_images() {
     var images = document.getElementsByClassName('image');
     for(var i=0; i < images.length; i++){
         if(images[i].src.indexOf('?') == -1) {
-            images[i].src = images[i].src + '?s';
+            images[i].src = images[i].src + '?ts=' + Date.now();
         } else {
-            images[i].src = images[i].src + '&s';
+            if(images[i].src.match(/ts=\d+$/)) {
+                images[i].src = images[i].src.replace(/ts=\d+$/, 'ts=' + Date.now());
+            } else {
+                images[i].src = images[i].src + '&ts=' + Date.now();
+            }
         }
     }
 }
 
-var books = {"activations_count":"http://r2d2.int.avs.io:8888/retargeting/select activations_count from activations where time > now() - 4h;?show_legend=&x_label_rotation=60&q_time_format=","activations_exec_time":"http://r2d2.int.avs.io:8888/retargeting/select mean(exec_time), max(exec_time) from activations where time > now() - 4h group by time(30m);?show_legend=&fill=1&interpolate=cubic&q_time_format=$H","activations_select_time":"http://r2d2.int.avs.io:8888/retargeting/select mean(select_time), max(select_time) from activations where time > now() - 4h group by time(30m);?interpolate=cubic&legend_at_bottom=1&fill=1&x_label_rotation=30&q_time_format=$H:$M","cpu_mem_percentage":"http://r2d2.int.avs.io:8888/retargeting/select mean(mem_percent) as mem_usage_avg, max(mem_percent) as mem_usage_max, mean(cpu_percent) as cpu_avg, max(cpu_percent) as cpu_max from resources where time > now() - 8h group by time(30m);?interpolate=cubic&x_label_rotation=35&legend_at_bottom=1&q_time_format=$H:$M","requests_count":"http://r2d2.int.avs.io:8888/retargeting/select count(code) from requests where time > now() - 12h group by time(1h);?show_legend=&q_time_format=&fill=1","response_times":"http://r2d2.int.avs.io:8888/retargeting/select max(duration), mean(duration) from requests where time > now() - 1h group by time(5m);?interpolate=cubic&fill=1&x_label_rotation=30&q_time_format=$H:$M&show_legend=","retargeting_count":"http://r2d2.int.avs.io:8888/retargeting/select count(source) from retargeting where time > now() - 12h and shoot =~ /true/ group by time(1h);?show_legend=&interpolate=cubic&fill=1&x_label_rotation=30&q_time_format=$H:$M"};
 function init() {
-    this.key = location.protocol + '//' + location.hostname + location.pathname;
+    this.key = location.protocol + '//' + location.hostname + (location.port != "" ? ":" + location.port : "") + location.pathname;
     var b = JSON.parse(localStorage.getItem(key)) || {};
-    for(var i in books) {
-        if(!(i in b)) {
-            b[i] = books[i];
-        }
-    }
     localStorage.setItem(key, JSON.stringify(b));
+    load_bookmarks();
     draw_boxes();
     setInterval(update_images, 30000);
 }
@@ -121,6 +117,7 @@ $(function(){
     init();
 });
 </script>
+<script src="bookmarks.js"></script>
 <link href='//fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
 <style type="text/css">
 body {
@@ -237,8 +234,7 @@ ul {
   <button class="button" onclick="add_new()">DRAW</button>
 </div>
 <div class="gridster">
-    <ul id="container">
-    </ul>
+    <ul id="container"></ul>
 </div>
 <div class='store' id='store'></div>
 </body>
