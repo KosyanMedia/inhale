@@ -90,7 +90,8 @@ chart_types = {
     'stackedline': pygal.StackedLine,
     'stackedbar': pygal.StackedBar,
     'horizontalbar': pygal.HorizontalBar,
-    'pie': pygal.Pie
+    'pie': pygal.Pie,
+    'gauge': pygal.Gauge
 }
 
 select = {
@@ -129,6 +130,8 @@ class SvgHandler(RequestHandler):
                     value = self.get_argument(name)
                     if name == 'style':
                         value = globals()[value]
+                    elif name == 'range':
+                        value = sorted(list(map(float, value.split(','))))
                     elif match(r"[\d-]+", value):
                         value = int(value)
                     chart_params[name] = value
