@@ -43,9 +43,14 @@ def sys_data():
 
 def disk_data():
     tor = {}
-    for hdd, info in psutil.disk_io_counters(perdisk=True).items():
-       for k, v in info._asdict().items():
-           tor['hdd_' + hdd + '_' + k] = v
+    #for hdd, info in psutil.disk_io_counters(perdisk=True).items():
+    #   for k, v in info._asdict().items():
+    #       tor[hdd + '_' + k] = v
+    for p in psutil.disk_partitions():
+       hdd = p.device.split('/')[-1]
+       for k, v in psutil.disk_usage(p.mountpoint)._asdict().items():
+           tor[hdd + '_' + k] = v
+        
     return tor
     
  
