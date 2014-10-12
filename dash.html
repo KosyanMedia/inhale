@@ -61,12 +61,16 @@ function draw_boxes() {
         html += "<li class='box' id='" + name + "'>" + name;
         html += "<span class='butt' onclick='edit(\"" + name + "\", \"" + encodeURI(url) + "\")'>(edit)</span>";
         html += "<span class='butt' onclick='drop(\"" + name + "\")'>(del)</span>";
-        html += "<br><a href='" + url + "' target='_blank'><img class='image' src='" + url + thumb + "'></a></li>";
+        if(url.match(/type=table/)) {
+            html += "<br><a href='" + url + "' target='_blank'><iframe frameborder='0' class='image' marginwidth='0' style='width: 100%; height: 100%' src='" + url + thumb + "'></iframe></a></li>";
+        } else {
+            html += "<br><a href='" + url + "' target='_blank'><img class='image' src='" + url + thumb + "'></img></a></li>";
+        }
         if(name in pos) {
             var p = pos[name];
             grids.add_widget(html, p.size_x, p.size_y, p.col, p.row);
         } else {
-            grids.add_widget(html, 6, 6);
+            grids.add_widget(html, 3, 3);
         }
     }
     var s = document.getElementById('store');
@@ -103,7 +107,7 @@ function save_positions(e, u, w) {
 $(function(){
     grids = $(".gridster ul").gridster({
         widget_margins: [5, 5],
-        widget_base_dimensions: [30, 25],
+        widget_base_dimensions: [60, 50],
         draggable: {
             stop: save_positions
         },

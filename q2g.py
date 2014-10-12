@@ -69,7 +69,7 @@ def parse_response(response, x_column='time'):
         for i, v in enumerate(point):
             values[columns[i]] = v
         tor[point[time]] =  values
-    return series, reversed(list(filter(lambda c: c not in ('time', 'sequence_number', x_column), columns))), tor 
+    return series, reversed(list(filter(lambda c: c not in ('time', 'sequence_number', x_column), columns))), tor
 
 def options():
     parser = ArgumentParser()
@@ -110,43 +110,80 @@ def render_trace(tp, val, trace):
         ex_type = ex_type + ''.join(map(lambda v: '<text xml:space="preserve" font-size="14" x="5" y="' + str(len(stack_lines) * 20 + v[0] * 18 + 30)+ '" font-family="monospace">' + html_escape(v[1] )+ '</text>', enumerate(val.response.body.decode('utf8').split('\n'), 1)))
     return head + stack + ex_type + tail
 
+TABLE_HEAD="""<html><head>
+  <head>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["table"]});
+      google.setOnLoadCallback(function(){
+        var data = new google.visualization.DataTable();"""
+
+TABLE_TAIL="""
+       var table = new google.visualization.Table(document.getElementById('t'));
+        table.draw(data);
+      });
+    </script>
+</head><body><div id="t"></div></body></html>"""
+
+def render_table(cols, rows):
+    tor = TABLE_HEAD
+    cols = list(cols)
+    tor = tor + '\n'.join(map(lambda r: 'data.addColumn("string", "{}");'.format(r), cols))
+    data = []
+    for k in rows.keys():
+        data.append(list(map(lambda c: str(rows[k][c]), cols)))
+    tor = tor + "data.addRows(" + dumps(data) + ");"
+    tor = tor + TABLE_TAIL
+    return tor
+
 class SvgHandler(RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def get(self, series, query):
         logging.info(query)
-        x_axis = self.get_argument('x', 'time')
+        font = self.get_argument('font_family', 'Helvetica')
         secondary = self.get_argument('secondary', '').split(',')
-        chart = chart_types[self.get_argument('type', 'line')]
-        time_format = self.get_argument('time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
-        self.set_header("Content-Type", 'image/svg+xml')
+        chart_type = self.get_argument('type', 'line')
+        if chart_type != 'table':
+            chart = chart_types[chart_type]
+        time_format = self.get_argument('q_time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
+        self.set_header("Content-Type", 'image/svg+xml' if chart_type != 'table' else 'text/html')
         try:
             response = yield select(ops.db_host, ops.db_port, series, query, login=ops.db_login, password=ops.db_password)
+            x_axis = self.get_argument('x', 'time')
             series, cols, rows = parse_response(response, x_axis)
             x_points = rows.keys()
+            style = DefaultStyle
+            style.font_family = font
             chart_params = {};
             for name in self.request.arguments:
                 if name not in ('type', 'x', 'time_format', 'secondary'):
                     value = self.get_argument(name)
                     if name == 'style':
                         value = globals()[value]
+                        value.font_family = font
                     elif name == 'range':
                         value = sorted(list(map(float, value.split(','))))
                     elif match(r"[\d-]+", value):
                         value = int(value)
                     chart_params[name] = value
-            bar_chart = chart(**chart_params)
             if x_axis == 'time':
-                bar_chart.x_labels = list(map(lambda uts: datetime.fromtimestamp(uts / 1000).strftime(time_format), x_points))
+                x_labels = list(map(lambda uts: datetime.fromtimestamp(uts / 1000).strftime(time_format), x_points))
             else:
-                bar_chart.x_labels = list(map(str, x_points))
-            for col in cols:
-                points = list(map(lambda x: rows[x][col], x_points))
-                if col in secondary:
-                    bar_chart.add(col, points, secondary=True)
-                else:
-                    bar_chart.add(col, points)
-            self.write(bar_chart.render())
+                x_labels = list(map(str, x_points))
+
+            if chart_type == 'table':
+                self.write(render_table([x_axis] + list(cols), rows))
+            else:
+                bar_chart = chart(**chart_params)
+                bar_chart.x_labels = x_labels
+                for col in cols:
+                    points = list(map(lambda x: rows[x][col], x_points))
+                    if col in secondary:
+                        bar_chart.add(col, points, secondary=True)
+                    else:
+                        bar_chart.add(col, points)
+                self.write(bar_chart.render())
         except:
             tp, value, traceback = sys.exc_info()
             self.write(render_trace(tp, value, traceback))
