@@ -6,7 +6,10 @@ from tornado.httpclient import AsyncHTTPClient
 import tornado.web
 import tornado.gen
 import tornado.concurrent
-from urllib.parse import urlencode
+try:
+    from urllib.parse import urlencode
+except ImportError:
+    from urllib import urlencode
 from json import loads, dumps
 from datetime import datetime
 import pygal
@@ -28,7 +31,8 @@ def select_influx(host, port, db, query, login='root', password='root', connect_
     params = urlencode(params)
     url = "http://{host}:{port}/db/{db}/series?{params}".format(host=host, port=port, db=db, query=query, params=params)
     response = yield AsyncHTTPClient().fetch(url, method='GET', connect_timeout=connect_timeout, request_timeout=request_timeout)
-    return loads(response.body.decode('utf8'))[0]
+    raise tornado.gen.Return(loads(response.body.decode('utf8'))[0])
+    #return loads(response.body.decode('utf8'))[0]
 
 @tornado.gen.coroutine
 def select_mysql(host, port, db, query, login='root', password='root', connect_timeout=60, request_timeout=120):
@@ -54,7 +58,8 @@ def select_mysql(host, port, db, query, login='root', password='root', connect_t
     }
     cur.close()
     conn.close()
-    return tor
+    raise tornado.gen.Return(tor)
+    #return tor
 
 
 def parse_response(response, x_column='time'):

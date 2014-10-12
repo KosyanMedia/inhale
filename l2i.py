@@ -43,7 +43,7 @@ def multi_follow(masks, splitter="\n", interval=1, jump=True, follow=True):
             if follow:
                 sleep(interval)
             else:
-                return
+                exit(0)
 
 def format_influx(message, pattern):
     m = [{
@@ -96,6 +96,7 @@ while True:
     
     for mask, path, line in multi_follow(patterns.keys(), jump=jump, follow=follow):
         if need_to_reload:
+            need_to_reload = False
             break
         for pattern in patterns[mask]:
             match = pattern['pattern'].match(line)
