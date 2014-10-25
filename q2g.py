@@ -32,12 +32,14 @@ def select_influx(host, port, db, query, login='root', password='root', connect_
     url = "http://{host}:{port}/db/{db}/series?{params}".format(host=host, port=port, db=db, query=query, params=params)
     response = yield AsyncHTTPClient().fetch(url, method='GET', connect_timeout=connect_timeout, request_timeout=request_timeout)
     raise tornado.gen.Return(loads(response.body.decode('utf8'))[0])
-    #return loads(response.body.decode('utf8'))[0]
 
 @tornado.gen.coroutine
 def select_mysql(host, port, db, query, login='root', password='root', connect_timeout=60, request_timeout=120):
     import tornado_mysql
     conn = yield tornado_mysql.connect(host=host, port=port, user=login, passwd=password, db=db)
+    cur = conn.cursor()
+    yield cur.execute('set names utf8;')
+    cur.close()
     cur = conn.cursor()
     yield cur.execute(query)
     points = []
@@ -59,13 +61,12 @@ def select_mysql(host, port, db, query, login='root', password='root', connect_t
     cur.close()
     conn.close()
     raise tornado.gen.Return(tor)
-    #return tor
 
 
 def parse_response(response, x_column='time'):
     series = response.get('name', 'Unknown')
     columns = response['columns']
-    points = reversed(response['points'])
+    points = response['points']
     time = columns.index(x_column)
     tor = OrderedDict()
     point = None
@@ -74,7 +75,7 @@ def parse_response(response, x_column='time'):
         for i, v in enumerate(point):
             values[columns[i]] = v
         tor[point[time]] =  values
-    return series, reversed(list(filter(lambda c: c not in ('time', 'sequence_number', x_column), columns))), tor
+    return series, list(filter(lambda c: c not in ('time', 'sequence_number', x_column), columns)), tor
 
 def options():
     parser = ArgumentParser()
@@ -144,7 +145,10 @@ def render_google_chart(cols, rows, chart_type='table',options={}):
         data.append(list(map(lambda c: norm(rows[k][c]), cols)))
     tor = tor + "data.addRows(" + dumps(data) + ");"
     for o in options.keys():
-        tor = tor + 'options["' + str(o) + '"] = "' + str(options[o]) + '";';
+        if o == 'sortColumn':
+            tor = tor + 'options["' + str(o) + '"] = ' + str(options[o]) + ';';
+        else:
+            tor = tor + 'options["' + str(o) + '"] = "' + str(options[o]) + '";';
     tor = tor + TABLE_TAIL.replace('TYPE', chart_type.capitalize())
     return tor
 
@@ -165,7 +169,7 @@ class SvgHandler(RequestHandler):
             response = yield select(ops.db_host, ops.db_port, series, query, login=ops.db_login, password=ops.db_password)
             x_axis = self.get_argument('x', 'time')
             series, cols, rows = parse_response(response, x_axis)
-            x_points = rows.keys()
+            x_points = list(rows.keys())
             style = DefaultStyle
             style.font_family = font
             chart_params = {};
@@ -181,7 +185,7 @@ class SvgHandler(RequestHandler):
                         value = int(value)
                     chart_params[name] = value
             if x_axis == 'time':
-                x_labels = list(map(lambda uts: datetime.fromtimestamp(uts / 1000).strftime(time_format), x_points))
+                x_labels = reversed(list(map(lambda uts: datetime.fromtimestamp(uts / 1000).strftime(time_format), x_points)))
             else:
                 x_labels = list(map(str, x_points))
 
