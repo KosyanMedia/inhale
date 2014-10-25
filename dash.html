@@ -57,14 +57,14 @@ function draw_boxes() {
         var html = "";
         var url = storage[name];
         var style = localStorage.getItem('inhale_style') || 'DefaultStyle'
-        var thumb = (url.indexOf('?') == -1 ? '?' : '&') + "label_font_size=25&major_label_font_size=30&show_dots=&legend_font_size=25&human_readable=1&style=" + style;
+        var thumb = (url.indexOf('?') == -1 ? '?' : '&') + "label_font_size=25&major_label_font_size=30&show_dots=&legend_font_size=25&human_readable=1&print_values=&style=" + style;
         html += "<li class='box' id='" + name + "'>" + name;
         html += "<span class='butt' onclick='edit(\"" + name + "\", \"" + encodeURI(url) + "\")'>(edit)</span>";
         html += "<span class='butt' onclick='drop(\"" + name + "\")'>(del)</span>";
-        if(url.match(/type=table/)) {
+        if(url.match(/type=(table|gauge)/)) {
             html += "<br><a href='" + url + "' target='_blank'><iframe frameborder='0' class='image' marginwidth='0' style='width: 100%; height: 100%' src='" + url + thumb + "'></iframe></a></li>";
         } else {
-            html += "<br><a href='" + url + "' target='_blank'><img class='image' src='" + url + thumb + "'></img></a></li>";
+	    html += "<br><a href='" + url + "' target='_blank'><img class='image' src='" + url + thumb + "'></img></a></li>";
         }
         if(name in pos) {
             var p = pos[name];
@@ -183,7 +183,6 @@ body {
     text-align: center;
     color: white;
     background-color: black;
-    transition: opacity 0.4s ease-in-out;
 }
 .box:hover{
     border: 1px solid #d0d9ff;

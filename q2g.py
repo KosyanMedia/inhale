@@ -96,7 +96,8 @@ chart_types = {
     'stackedbar': pygal.StackedBar,
     'horizontalbar': pygal.HorizontalBar,
     'pie': pygal.Pie,
-    'gauge': pygal.Gauge
+    'gauge': pygal.Gauge,
+    'dot': pygal.Dot
 }
 
 select = {
@@ -119,26 +120,32 @@ TABLE_HEAD="""<html><head>
   <head>
     <script type="text/javascript" src="https://www.google.com/jsapi"></script>
     <script type="text/javascript">
-      google.load("visualization", "1", {packages:["table"]});
+      google.load("visualization", "1", {packages:["TYPE"]});
       google.setOnLoadCallback(function(){
+        var options = {};
         var data = new google.visualization.DataTable();"""
-
 TABLE_TAIL="""
-       var table = new google.visualization.Table(document.getElementById('t'));
-        table.draw(data);
+       var table = new google.visualization.TYPE(document.getElementById('t'));
+        table.draw(data, options);
       });
     </script>
 </head><body><div id="t"></div></body></html>"""
 
-def render_table(cols, rows):
-    tor = TABLE_HEAD
+def render_google_chart(cols, rows, chart_type='table',options={}):
+    tor = TABLE_HEAD.replace('TYPE', chart_type)
     cols = list(cols)
-    tor = tor + '\n'.join(map(lambda r: 'data.addColumn("string", "{}");'.format(r), cols))
+    if chart_type == 'gauge':
+        cols = cols[1:]
+    col_type = 'string' if chart_type == 'table' else 'number'
+    tor = tor + '\n'.join(map(lambda r: 'data.addColumn("{}", "{}");'.format(col_type, r), cols))
     data = []
     for k in rows.keys():
-        data.append(list(map(lambda c: str(rows[k][c]), cols)))
+        norm = str if chart_type == 'table' else float
+        data.append(list(map(lambda c: norm(rows[k][c]), cols)))
     tor = tor + "data.addRows(" + dumps(data) + ");"
-    tor = tor + TABLE_TAIL
+    for o in options.keys():
+        tor = tor + 'options["' + str(o) + '"] = "' + str(options[o]) + '";';
+    tor = tor + TABLE_TAIL.replace('TYPE', chart_type.capitalize())
     return tor
 
 class SvgHandler(RequestHandler):
@@ -148,11 +155,12 @@ class SvgHandler(RequestHandler):
         logging.info(query)
         font = self.get_argument('font_family', 'Helvetica')
         secondary = self.get_argument('secondary', '').split(',')
+        sparkline = self.get_argument('sparkline', False)
         chart_type = self.get_argument('type', 'line')
         if chart_type != 'table':
             chart = chart_types[chart_type]
-        time_format = self.get_argument('q_time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
-        self.set_header("Content-Type", 'image/svg+xml' if chart_type != 'table' else 'text/html')
+        time_format = self.get_argument('time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
+        self.set_header("Content-Type", 'image/svg+xml' if chart_type not in ('table','gauge') else 'text/html')
         try:
             response = yield select(ops.db_host, ops.db_port, series, query, login=ops.db_login, password=ops.db_password)
             x_axis = self.get_argument('x', 'time')
@@ -162,7 +170,7 @@ class SvgHandler(RequestHandler):
             style.font_family = font
             chart_params = {};
             for name in self.request.arguments:
-                if name not in ('type', 'x', 'time_format', 'secondary'):
+                if name not in ('type', 'x', 'time_format', 'secondary', 'sparkline'):
                     value = self.get_argument(name)
                     if name == 'style':
                         value = globals()[value]
@@ -177,8 +185,8 @@ class SvgHandler(RequestHandler):
             else:
                 x_labels = list(map(str, x_points))
 
-            if chart_type == 'table':
-                self.write(render_table([x_axis] + list(cols), rows))
+            if chart_type in ('table', 'gauge'):
+                self.write(render_google_chart([x_axis] + list(cols), rows, chart_type=chart_type, options=chart_params))
             else:
                 bar_chart = chart(**chart_params)
                 bar_chart.x_labels = x_labels
@@ -188,7 +196,7 @@ class SvgHandler(RequestHandler):
                         bar_chart.add(col, points, secondary=True)
                     else:
                         bar_chart.add(col, points)
-                self.write(bar_chart.render())
+                self.write(bar_chart.render_sparkline() if sparkline else bar_chart.render())
         except:
             tp, value, traceback = sys.exc_info()
             self.write(render_trace(tp, value, traceback))
