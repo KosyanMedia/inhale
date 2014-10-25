@@ -1,8 +1,8 @@
 <html>
 <head class="head">
 <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-<script src="res/jquery.gridster.min.js"></script>
-<link rel='stylesheet' href="res/jquery.gridster.min.css" type="text/css"></link>
+<script src="jquery.gridster.min.js"></script>
+<link rel='stylesheet' href="jquery.gridster.min.css" type="text/css"></link>
 <script>
 function bookmarks_load_callback(l) {
     var key = location.protocol + '//' + location.hostname + (location.port != "" ? ":" + location.port : "") + location.pathname;
@@ -129,28 +129,36 @@ body {
     bottom: 0;
     left: 0;
     width: 100%;
-    height: calc(100% - 30px);
+    height: calc(100% - 26px);
     z-index: 0;
 }
 .ontop {
     z-index: 1;
 }
 .butt {
+    opacity: 0.5;
     display: inline-block;
+    position: absolute;
     cursor: pointer;
     width: 24px;
     height: 24px;
     background-size: 24px 24px;
+    top: 0;
+}
+.butt:hover {
+    opacity: 1;
 }
 .edit {
-    background: url(res/edit.svg);
+    right: 26px;
+    background: url(edit.svg);
 }
 .delete {
-    background: url(res/delete.svg);
+    right: 0px;
+    background: url(delete.svg);
 }
 .query {
-    position: relative;
     top: 10%;
+    position: relative;
     width: 70%;
     height: 80%;
 }
@@ -177,7 +185,7 @@ body {
     overflow: scroll;
     background-color: #3f51b5;
     color: white;
-    z-index: 100;
+    z-index: 1;
     opacity: 0.1;
     filter: blur(5px);
     -webkit-filter: blur(5px);
@@ -188,20 +196,17 @@ body {
     opacity: 1.0;
     filter: blur(0px);
     -webkit-filter: blur(0px);
+    z-index: 100;
 }
 .box {
     width: 300px;
     height: 250px;
-    border: 1px solid #3f51b5;
     margin: 5px;
     overflow: hidden;
     text-align: center;
     color: white;
     background-color: black;
-    font-size: 125%;
-}
-.box:hover{
-    border: 1px solid #d0d9ff;
+    font-size: 115%;
 }
 .gridster * {
   margin:0;
@@ -211,7 +216,8 @@ ul {
   list-style-type: none;
 }
 .gridster {
-    margin: 0 auto;
+    z-index: 10;
+    margin: 10px 0 10px;
 }
 .gridster .gs-w {
     background: black;
