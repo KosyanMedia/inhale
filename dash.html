@@ -1,8 +1,8 @@
 <html>
 <head class="head">
 <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-<script src="jquery.gridster.min.js"></script>
-<link rel='stylesheet' href="jquery.gridster.min.css" type="text/css"></link>
+<script src="res/jquery.gridster.min.js"></script>
+<link rel='stylesheet' href="res/jquery.gridster.min.css" type="text/css"></link>
 <script>
 function bookmarks_load_callback(l) {
     var key = location.protocol + '//' + location.hostname + (location.port != "" ? ":" + location.port : "") + location.pathname;
@@ -59,9 +59,9 @@ function draw_boxes() {
         var style = localStorage.getItem('inhale_style') || 'DefaultStyle'
         var thumb = (url.indexOf('?') == -1 ? '?' : '&') + "label_font_size=25&major_label_font_size=30&show_dots=&legend_font_size=25&human_readable=1&print_values=&style=" + style;
         html += "<li class='box' id='" + name + "'>" + name;
-        html += "<span class='butt' onclick='edit(\"" + name + "\", \"" + encodeURI(url) + "\")'>(edit)</span>";
-        html += "<span class='butt' onclick='drop(\"" + name + "\")'>(del)</span>";
-        html += "<br><a href='" + url + "' target='_blank'><div class='chart_div ontop'></div><iframe frameborder='0' class='chart_div' marginwidth='0' src='" + url + thumb + "'></iframe></a></li>";
+        html += "<span class='butt edit' onclick='edit(\"" + name + "\", \"" + encodeURI(url) + "\")'>&nbsp;</span>";
+        html += "<span class='butt delete' onclick='drop(\"" + name + "\")'>&nbsp;</span>";
+        html += "<br><a href='" + url + "' target='_blank'><div class='chart_div ontop'></div><iframe frameborder='0' class='image chart_div' marginwidth='0' src='" + url + thumb + "'></iframe></a></li>";
         if(name in pos) {
             var p = pos[name];
             grids.add_widget(html, p.size_x, p.size_y, p.col, p.row);
@@ -129,16 +129,24 @@ body {
     bottom: 0;
     left: 0;
     width: 100%;
-    height: calc(100% - 25px);
+    height: calc(100% - 30px);
     z-index: 0;
 }
 .ontop {
     z-index: 1;
 }
 .butt {
+    display: inline-block;
     cursor: pointer;
-    font-size: 80%;
-    color: #00bcd4;
+    width: 24px;
+    height: 24px;
+    background-size: 24px 24px;
+}
+.edit {
+    background: url(res/edit.svg);
+}
+.delete {
+    background: url(res/delete.svg);
 }
 .query {
     position: relative;
@@ -190,6 +198,7 @@ body {
     text-align: center;
     color: white;
     background-color: black;
+    font-size: 125%;
 }
 .box:hover{
     border: 1px solid #d0d9ff;
