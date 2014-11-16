@@ -62,6 +62,36 @@ def select_mysql(host, port, db, query, login='root', password='root', connect_t
     conn.close()
     raise tornado.gen.Return(tor)
 
+@tornado.gen.coroutine
+def select_pgsql(host, port, db, query, login=None, password=None, connect_timeout=60, request_timeout=120):
+    import psycopg2
+    import momoko
+    DSNL = 'dbname={db} user={login} password={password} host={host} port={port}'
+    DSN = 'dbname={db} host={host} port={port}'
+    DSNL = 'dbname={db} host={host} port={port}'
+    pool = momoko.Pool(
+        dsn=(DSNL if login else DSN).format(db=db, login=login, password=password, host=host, port=port),
+        size=1
+    )
+    cur = yield momoko.Op(pool.execute, 'select * from t;')
+    points = []
+    for row in cur:
+        toa = []
+        points.append(toa)
+        for val in row:
+            if isinstance(val, datetime):
+                val = val.timestamp()
+            elif isinstance(val, Number):
+                val = float(val)
+            toa.append(val)
+        
+    tor = {
+        'name': query,
+        'columns': list(map(lambda c: c[0], cur.description)),
+        'points': points
+    }
+    raise tornado.gen.Return(tor)
+
 
 def parse_response(response, x_column='time'):
     series = response.get('name', 'Unknown')
@@ -83,7 +113,7 @@ def options():
     parser.add_argument("-p", "--port", dest="port", type=int, help="port to listen on", default=8888)
     parser.add_argument("-i", "--db-host", dest="db_host", help="influxdb host", default="localhost")
     parser.add_argument("-m", "--db-port", dest="db_port", help="influxdb port", default=8086, type=int)
-    parser.add_argument("-d", "--db-type", dest="db_type", help="influx/mysql", default="influx")
+    parser.add_argument("-d", "--db-type", dest="db_type", help="influx/mysql/pgsql", default="influx")
     parser.add_argument("-l", "--db-login", dest="db_login", help="database login", default="root")
     parser.add_argument("-s", "--db-password", dest="db_password", help="database password", default="root")
     return parser.parse_args()
@@ -103,7 +133,8 @@ chart_types = {
 
 select = {
     'influx': select_influx,
-    'mysql': select_mysql
+    'mysql': select_mysql,
+    'pgsql': select_pgsql
 }[ops.db_type]
 
 def render_trace(tp, val, trace):
