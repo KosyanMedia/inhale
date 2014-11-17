@@ -73,7 +73,7 @@ def select_pgsql(host, port, db, query, login=None, password=None, connect_timeo
         dsn=(DSNL if login else DSN).format(db=db, login=login, password=password, host=host, port=port),
         size=1
     )
-    cur = yield momoko.Op(pool.execute, 'select * from t;')
+    cur = yield momoko.Op(pool.execute, query)
     points = []
     for row in cur:
         toa = []
