@@ -52,7 +52,7 @@ def select_mysql(host, port, db, query, login='root', password='root', connect_t
             elif isinstance(val, Number):
                 val = float(val)
             toa.append(val)
-        
+
     tor = {
         'name': query,
         'columns': list(map(lambda c: c[0], cur.description)),
@@ -84,7 +84,7 @@ def select_pgsql(host, port, db, query, login=None, password=None, connect_timeo
             elif isinstance(val, Number):
                 val = float(val)
             toa.append(val)
-        
+
     tor = {
         'name': query,
         'columns': list(map(lambda c: c[0], cur.description)),
@@ -93,13 +93,38 @@ def select_pgsql(host, port, db, query, login=None, password=None, connect_timeo
     raise tornado.gen.Return(tor)
 
 
-def parse_response(response, x_column='time'):
+def parse_response(response, x_column='time', options={}):
     series = response.get('name', 'Unknown')
     columns = response['columns']
     points = response['points']
     time = columns.index(x_column)
     tor = OrderedDict()
     point = None
+
+    if 'transpose' in options and options['transpose']:
+        transpose_col = options['transpose']
+        new_columns = []
+        new_points = OrderedDict()
+
+        for point in points:
+            values = {}
+            for i, v in enumerate(point):
+                values[columns[i]] = v
+            time = values.pop('time')
+            transpose_col_name = values.pop(transpose_col)
+            if time not in new_points:
+                new_points[time] = {}
+            for k in values:
+                colname = transpose_col_name + '_' + k
+                new_points[time][colname] = values[k]
+                if colname not in new_columns:
+                    new_columns.append(colname)
+        for ts in new_points:
+            for col in new_columns:
+                if col not in new_points[ts]:
+                    new_points[ts][col] = 0
+        return series, new_columns, new_points
+
     for point in points:
         values = {}
         for i, v in enumerate(point):
@@ -262,7 +287,10 @@ class SvgHandler(RequestHandler):
         try:
             response = yield select(ops.db_host, ops.db_port, series, query, login=ops.db_login, password=ops.db_password)
             x_axis = self.get_argument('x', 'time')
-            series, cols, rows = parse_response(response, x_axis)
+            options = {
+                'transpose': self.get_argument('transpose', False)
+            }
+            series, cols, rows = parse_response(response, x_axis, options)
             x_points = list(rows.keys())
             style = DefaultStyle
             style.font_family = font
