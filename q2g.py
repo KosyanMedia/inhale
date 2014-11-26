@@ -101,7 +101,7 @@ def parse_response(response, x_column='time', options={}):
     tor = OrderedDict()
     point = None
 
-    if 'transpose' in options and options['transpose']:
+    if options.get('transpose'):
         transpose_col = options['transpose']
         new_columns = []
         new_points = OrderedDict()
@@ -110,7 +110,7 @@ def parse_response(response, x_column='time', options={}):
             values = {}
             for i, v in enumerate(point):
                 values[columns[i]] = v
-            time = values.pop('time')
+            time = values.pop(x_column)
             transpose_col_name = values.pop(transpose_col)
             if time not in new_points:
                 new_points[time] = {}
@@ -230,7 +230,8 @@ MAP_HEAD="""
                 L.tileLayer(
                     'http://{{s}}.tile.osm.org/{{z}}/{{x}}/{{y}}.png',
                      {{
-                        id: 'examples.map-i875mjb7'
+                        id: 'examples.map-i875mjb7',
+                        detectRetina: true
                      }}
                 ).addTo(map);
 """
