@@ -274,6 +274,29 @@ def render_map(cols, rows, chart_type,options={}):
     tor.append(MAP_TAIL.format(**options))
     return ''.join(tor)
 
+JSGAUGE="""<html><head>
+<script src="//cdn.jsdelivr.net/justgage/1.0.1/justgage.min.js"></script>
+<script src="//cdn.jsdelivr.net/raphael/2.1.2/raphael-min.js"></script>
+<script>
+function run(){{
+  var options = {{
+    id: 'g',
+    startAnimationTime: 1,
+    levelColorsGradient: false
+  }};
+  {ops};
+  new JustGage(options);
+}};</script>
+</head><body onload="run()">
+<div id='g' style='width: 100%; height: 100%;'></div>
+</body></html>"""
+
+def render_jsgauge(col, rows, chart_type,options={}):
+    for l, r  in rows.items():
+        ops = 'options["value"] = ' + str(r[col]) + ';'
+    ops = ops + ';'.join(map(lambda i: 'options["' + i[0] + '"] = "' + str(i[1]) + '"', options.items()))
+    return JSGAUGE.format(ops=ops)
+
 class SvgHandler(RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
@@ -284,7 +307,7 @@ class SvgHandler(RequestHandler):
         sparkline = self.get_argument('sparkline', False)
         chart_type = self.get_argument('type', 'line')
         time_format = self.get_argument('time_format', '%Y-%m-%d %H:%M:%S').replace('$', '%')
-        self.set_header("Content-Type", 'image/svg+xml' if chart_type not in ('table','gauge', 'map') else 'text/html')
+        self.set_header("Content-Type", 'image/svg+xml' if chart_type not in ('table', 'jsgauge','gauge', 'map') else 'text/html')
         try:
             response = yield select(ops.db_host, ops.db_port, series, query, login=ops.db_login, password=ops.db_password)
             x_axis = self.get_argument('x', 'time')
@@ -314,6 +337,8 @@ class SvgHandler(RequestHandler):
 
             if chart_type in ('table', 'gauge'):
                 self.write(render_google_chart([x_axis] + list(cols), rows, chart_type=chart_type, options=chart_params))
+            elif chart_type == 'jsgauge':
+                self.write(render_jsgauge(x_axis, rows, chart_type=chart_type, options=chart_params))
             elif chart_type == 'map':
                 self.write(render_map([x_axis] + list(cols), rows, chart_type=chart_type, options=chart_params))
             else:
