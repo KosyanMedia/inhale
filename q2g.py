@@ -10,7 +10,7 @@ try:
     from urllib.parse import urlencode
 except ImportError:
     from urllib import urlencode
-from json import loads, dumps
+from json import loads
 from datetime import datetime
 import pygal
 from collections import OrderedDict
@@ -20,6 +20,10 @@ from pygal.style import *
 from numbers import Number
 from traceback import format_exception
 from tornado.httpclient import HTTPError
+
+from charts.google_charts import render as render_google_chart
+from charts.jsgauge import render as render_jsgauge
+from charts.leaflet import render as render_map
 
 @tornado.gen.coroutine
 def select_influx(host, port, db, query, login='root', password='root', connect_timeout=60, request_timeout=120):
@@ -91,7 +95,6 @@ def select_pgsql(host, port, db, query, login=None, password=None, connect_timeo
         'points': points
     }
     raise tornado.gen.Return(tor)
-
 
 def parse_response(response, x_column='time', options={}):
     series = response.get('name', 'Unknown')
@@ -173,131 +176,7 @@ def render_trace(tp, val, trace):
         ex_type = ex_type + ''.join(map(lambda v: '<text xml:space="preserve" font-size="14" x="5" y="' + str(len(stack_lines) * 20 + v[0] * 18 + 30)+ '" font-family="monospace">' + html_escape(v[1] )+ '</text>', enumerate(val.response.body.decode('utf8').split('\n'), 1)))
     return head + stack + ex_type + tail
 
-TABLE_HEAD="""<html><head>
-    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-    <script type="text/javascript">
-      google.load("visualization", "1", {packages:["TYPE"]});
-      google.setOnLoadCallback(function(){
-        var options = {};
-        var data = new google.visualization.DataTable();"""
-TABLE_TAIL="""
-       var table = new google.visualization.TYPE(document.getElementById('t'));
-        table.draw(data, options);
-      });
-    </script>
-</head><body><div id="t"></div></body></html>"""
-
-def render_google_chart(cols, rows, chart_type='table',options={}):
-    tor = TABLE_HEAD.replace('TYPE', chart_type)
-    cols = list(cols)
-    if chart_type == 'gauge':
-        cols = cols[1:]
-    col_type = 'string' if chart_type == 'table' else 'number'
-    tor = tor + '\n'.join(map(lambda r: 'data.addColumn("{}", "{}");'.format(col_type, r or ''), cols))
-    data = []
-    def stringer(x):
-        if x:
-            if isinstance(x, float) and round(x) == x:
-                x = int(x)
-            return str(x)
-        else:
-            return ''
-    for k in rows.keys():
-        norm = stringer if chart_type == 'table' else float
-        data.append(list(map(lambda c: norm(rows[k][c]), cols)))
-    tor = tor + "data.addRows(" + dumps(data) + ");"
-    for o in options.keys():
-        if o == 'sortColumn':
-            tor = tor + 'options["' + str(o) + '"] = ' + str(options[o]) + ';';
-        else:
-            tor = tor + 'options["' + str(o) + '"] = "' + str(options[o]) + '";';
-    tor = tor + TABLE_TAIL.replace('TYPE', chart_type.capitalize())
-    return tor
-
-MAP_HEAD="""
-<html>
-<head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-         <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
-        <style>.iata{{}}</style>
-</head>
-<body>
-        <div id="map" style="width: 100%; height: 100%"></div>
-        <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
-        <script>
-                var map = L.map('map', {{zoomControl: false}}).setView([{center}], {zoom});
-                L.tileLayer(
-                    'http://{{s}}.tile.osm.org/{{z}}/{{x}}/{{y}}.png',
-                     {{
-                        id: 'examples.map-i875mjb7',
-                        detectRetina: true
-                     }}
-                ).addTo(map);
-"""
-
-MAP_POPUP="""
-                L.marker([{coords}], {{icon: L.divIcon({{className: "iata", html: "{iata}", }})}}).addTo(map);
-"""
-
-MAP_LINE="""
-                L.polyline([
-                        [{orig_coords}],
-                        [{dest_coords}]
-                ], {{
-                    color: 'red',
-                    weight: 0.006 * {searches},
-                    opacity: 0.003 * {searches}
-                }}).addTo(map);
-"""
-
-MAP_TAIL="""
-        </script>
-</body>
-</html>
-"""
-
-def render_map(cols, rows, chart_type,options={}):
-    tor = [MAP_HEAD.format(**options)]
-    iatas = {}
-    for l, r  in rows.items():
-        if 'fix_coords' in options:
-            r['orig_coords'] = ','.join(reversed(r['orig_coords'].split(':')))
-            r['dest_coords'] = ','.join(reversed(r['dest_coords'].split(':')))
-        tor.append(MAP_LINE.format(**r))
-        if r['orig'] not in iatas:
-            iatas[r['orig']] = True
-            tor.append(MAP_POPUP.format(coords=r['orig_coords'], iata=r['orig']))
-        if r['dest'] not in iatas:
-            iatas[r['dest']] = True
-            tor.append(MAP_POPUP.format(coords=r['dest_coords'], iata=r['dest']))
-    tor.append(MAP_TAIL.format(**options))
-    return ''.join(tor)
-
-JSGAUGE="""<html><head>
-<script src="//cdn.jsdelivr.net/justgage/1.0.1/justgage.min.js"></script>
-<script src="//cdn.jsdelivr.net/raphael/2.1.2/raphael-min.js"></script>
-<script>
-function run(){{
-  var options = {{
-    id: 'g',
-    startAnimationTime: 1,
-    levelColorsGradient: false
-  }};
-  {ops};
-  new JustGage(options);
-}};</script>
-</head><body onload="run()">
-<div id='g' style='width: 100%; height: 100%;'></div>
-</body></html>"""
-
-def render_jsgauge(col, rows, chart_type,options={}):
-    for l, r  in rows.items():
-        ops = 'options["value"] = ' + str(r[col]) + ';'
-    ops = ops + ';'.join(map(lambda i: 'options["' + i[0] + '"] = "' + str(i[1]) + '"', options.items()))
-    return JSGAUGE.format(ops=ops)
-
-class SvgHandler(RequestHandler):
+class Handler(RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def get(self, series, query):
@@ -337,7 +216,7 @@ class SvgHandler(RequestHandler):
 
             if chart_type in ('table', 'gauge'):
                 self.write(render_google_chart([x_axis] + list(cols), rows, chart_type=chart_type, options=chart_params))
-            elif chart_type == 'jsgauge':
+            elif chart_type in ('jsgauge', 'jsguage'):
                 self.write(render_jsgauge(x_axis, rows, chart_type=chart_type, options=chart_params))
             elif chart_type == 'map':
                 self.write(render_map([x_axis] + list(cols), rows, chart_type=chart_type, options=chart_params))
@@ -360,7 +239,7 @@ class SvgHandler(RequestHandler):
 
 logging.basicConfig(level=logging.DEBUG)
 app = Application([
-        url(r"/(.+?)/(.+)$", SvgHandler)
+        url(r"/(.+?)/(.+)$", Handler)
     ])
 app.listen(ops.port)
 IOLoop.current().start()
