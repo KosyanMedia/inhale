@@ -58,10 +58,10 @@ function draw_boxes() {
         var url = storage[name];
         var style = localStorage.getItem('inhale_style') || 'DefaultStyle'
         var thumb = (url.indexOf('?') == -1 ? '?' : '&') + "label_font_size=25&major_label_font_size=30&show_dots=&legend_font_size=25&human_readable=1&print_values=&style=" + style;
-        html += "<li class='box' id='" + name + "'>" + name;
-        html += "<span class='butt edit' onclick='edit(\"" + name + "\", \"" + encodeURI(url) + "\")'>&nbsp;</span>";
-        html += "<span class='butt delete' onclick='drop(\"" + name + "\")'>&nbsp;</span>";
-        html += "<br><a href='" + url + "' target='_blank'><div class='chart_div ontop'></div><iframe frameborder='0' class='image chart_div' marginwidth='0' src='" + url + thumb + "'></iframe></a></li>";
+        html += '<li class="box" id="' + name + '">' + name;
+        html += '<span class="butt edit" onclick="edit(\"' + name + '\", \"' + encodeURI(url) + '\")">&nbsp;</span>';
+        html += '<span class="butt delete" onclick="drop(\"' + name + '\")">&nbsp;</span>';
+        html += '<br><a href="' + url + '" target="_blank"><div class="chart_div ontop"></div><iframe frameborder="0" class="image chart_div" marginwidth="0" src="' + url + thumb + '"></iframe></a></li>';
         if(name in pos) {
             var p = pos[name];
             grids.add_widget(html, p.size_x, p.size_y, p.col, p.row);
