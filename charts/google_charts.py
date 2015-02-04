@@ -19,19 +19,25 @@ def render(cols, rows, chart_type='table',options={}):
     cols = list(cols)
     if chart_type == 'gauge':
         cols = cols[1:]
-    col_type = 'string' if chart_type == 'table' else 'number'
-    tor = tor + '\n'.join(map(lambda r: 'data.addColumn("{}", "{}");'.format(col_type, r or ''), cols))
+    if chart_type == 'table':
+        nums = options.get('numbers', '').split(',')
+        col_type = lambda name: 'number' if name in nums else 'string'
+    else:
+        col_type = lambda: 'number'
+    tor = tor + '\n'.join(map(lambda r: 'data.addColumn("{}", "{}");'.format(col_type(r), r or ''), cols))
     data = []
-    def stringer(x):
+    def stringer(x, n):
         if x:
-            if isinstance(x, float) and round(x) == x:
+            if n in nums:
+                return int(x)
+            elif isinstance(x, float) and round(x) == x:
                 x = int(x)
             return str(x)
         else:
             return ''
     for k in rows.keys():
         norm = stringer if chart_type == 'table' else float
-        data.append(list(map(lambda c: norm(rows[k][c]), cols)))
+        data.append(list(map(lambda c: norm(rows[k][c], c), cols)))
     tor = tor + "data.addRows(" + dumps(data) + ");"
     for o in options.keys():
         if o == 'sortColumn':
