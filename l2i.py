@@ -6,7 +6,7 @@ from sys import argv
 from os import stat
 from time import sleep
 from argparse import ArgumentParser, FileType
-from socket import socket, AF_INET, SOCK_DGRAM
+from socket import gethostname, socket, AF_INET, SOCK_DGRAM
 from glob import glob
 from functools import reduce
 from signal import signal, SIGHUP
@@ -88,6 +88,7 @@ def hup(f, s):
 
 signal(SIGHUP, hup)
 
+hostname = gethostname()
 while True:
     config, host, port, jump, follow, dry = options()
     patterns = load_config(config)
@@ -103,6 +104,7 @@ while True:
             if match:
                 message = match.groupdict()
                 message['source'] = path.split('/')[-1]
+                message['host'] = hostname
                 for field in pattern['numeric_fields']:
                     message[field] = float(message[field])
                 for field, code in pattern['eval'].items():
