@@ -73,7 +73,7 @@ def format_influx(message, name, host):
     m = [{
         "name": name,
         "columns": list(message.keys()) + ['host'],
-        "points": [list(message.values())] + [host]
+        "points": [list(message.values()) + [host]]
     }]
     return dumps(m).encode('utf8')
 
