@@ -5,7 +5,7 @@ from time import time, sleep
 from sys import argv
 from glob import glob
 from argparse import ArgumentParser, FileType
-from socket import socket, AF_INET, SOCK_DGRAM
+from socket import gethostname, socket, AF_INET, SOCK_DGRAM
 from functools import partial
 
 def delta(name, current_value, cache={}, process=None):
@@ -68,10 +68,11 @@ def processes(pts, cache={}):
                 pass
             finally:
                 f.close()
-   
-def format_influx(message, name):
+
+def format_influx(message, name, host):
     m = [{
         "name": name,
+        "host": host,
         "columns": list(message.keys()),
         "points": [list(message.values())]
     }]
@@ -90,15 +91,16 @@ logging.basicConfig(level=logging.DEBUG)
 host, port, dry, pid_paths = options()
 target = socket(AF_INET, SOCK_DGRAM)
 sender = partial(logging.info, "%s %s") if dry else target.sendto
+hostname = gethostname()
 
 while True:
-    sender(format_influx(sys_data(), 'resources'), (host, port))
-    sender(format_influx(disk_data(), 'disks'), (host, port))
+    sender(format_influx(sys_data(), 'resources', hostname), (host, port))
+    sender(format_influx(disk_data(), 'disks', hostname), (host, port))
     if pid_paths:
         for path, proc in processes(pid_paths.split(',')):
             name = path.split('/')[-1]
             try:
-                sender(format_influx(proc_data(proc, name), 'processes'), (host, port))
+                sender(format_influx(proc_data(proc, name), 'processes', hostname), (host, port))
             except psutil.NoSuchProcess:
                 pass
             except psutil.AccessDenied:
