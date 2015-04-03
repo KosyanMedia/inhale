@@ -72,9 +72,8 @@ def processes(pts, cache={}):
 def format_influx(message, name, host):
     m = [{
         "name": name,
-        "host": host,
-        "columns": list(message.keys()),
-        "points": [list(message.values())]
+        "columns": list(message.keys()) + ['host'],
+        "points": [list(message.values())] + [host]
     }]
     return dumps(m).encode('utf8')
 
