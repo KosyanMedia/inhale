@@ -9,8 +9,14 @@ while True:
     try:
       res = urlopen('http://' + h + '.int.avs.io:4401/status')
       data = loads(res.read().decode('utf8'))
+      messages = 0
+      subscriptions = 0
       for k, v in data.items():
-        print(','.join([h, k, str(v['messages']), str(v['subscriptions'])]))
+        messages += v['messages']
+        subscriptions += v['subscriptions']
+
+      print(','.join([h, str(messages), str(subscriptions)]))
     except:
       print('error')
   sleep(1)
+
