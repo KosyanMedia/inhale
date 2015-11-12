@@ -1,0 +1,267 @@
+<html>
+<head class="head">
+<script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="jquery.gridster.min.js"></script>
+<link rel='stylesheet' href="jquery.gridster.min.css" type="text/css"></link>
+<script>
+function bookmarks_load_callback(l) {
+    var key = location.protocol + '//' + location.hostname + (location.port != "" ? ":" + location.port : "") + location.pathname;
+    var storage = JSON.parse(localStorage.getItem(key)) || {};
+    for(var k in l) {
+        if(!(k in storage))
+            storage[k] = l[k];
+    }
+    localStorage.setItem(key, JSON.stringify(storage));
+    if(document.location != key) {
+        document.location = key;
+    }
+}
+function load_bookmarks() {
+    var source = window.location.search.substring(1);
+    try {
+        eval(decodeURI(source));
+        localStorage.setItem(key, JSON.stringify(storage));
+        document.location = key;
+    } catch(e) {
+        var sc = document.createElement("script");
+        sc.setAttribute("src", source)
+        document.getElementsByClassName("head")[0].appendChild(sc);
+    }
+}
+function add_new() {
+    var name = document.getElementById('name').value;
+    var query = document.getElementById('query').value;
+    storage[name] = query;
+    localStorage.setItem(key, JSON.stringify(storage));
+    draw_boxes();
+}
+function edit(name, url) {
+    document.getElementById('name').value = decodeURI(name);
+    document.getElementById('query').value = decodeURI(url);
+}
+function drop(name) {
+    delete storage[name];
+    localStorage.setItem(key, JSON.stringify(storage));
+    draw_boxes();
+}
+
+var grids;
+function draw_boxes() {
+    var positions = JSON.parse(localStorage.getItem(key + '_positions')) || [];
+    var pos = {};
+    for(var i = 0; i < positions.length; i++) {
+        pos[positions[i].name] = positions[i];
+    }
+    this.storage = JSON.parse(localStorage.getItem(key)) || {};
+    grids.remove_all_widgets();
+    for(var name in storage) {
+        var html = "";
+        var url = storage[name];
+        var style = localStorage.getItem('inhale_style') || 'DefaultStyle'
+        var thumb = (url.indexOf('?') == -1 ? '?' : '&') + "label_font_size=25&major_label_font_size=30&show_dots=&legend_font_size=25&human_readable=1&print_values=&style=" + style;
+        html += "<li class='box' id='" + name + "'>" + name;
+        html += "<span class='butt edit' onclick='edit(\"" + name + "\", \"" + encodeURI(url) + "\")'>&nbsp;</span>";
+        html += "<span class='butt delete' onclick='drop(\"" + name + "\")'>&nbsp;</span>";
+        html += "<br><a href='" + url + "' target='_blank'><div class='chart_div ontop'></div><iframe frameborder='0' class='image chart_div' marginwidth='0' src='" + url + thumb + "'></iframe></a></li>";
+        if(name in pos) {
+            var p = pos[name];
+            grids.add_widget(html, p.size_x, p.size_y, p.col, p.row);
+        } else {
+            grids.add_widget(html, 3, 3);
+        }
+    }
+    var s = document.getElementById('store');
+    s.innerHTML = 'bookmarks_load_callback(' + localStorage.getItem(key) + ');';
+}
+function update_images() {
+    var images = document.getElementsByClassName('image');
+    for(var i=0; i < images.length; i++){
+        if(images[i].src.indexOf('?') == -1) {
+            images[i].src = images[i].src + '?ts=' + Date.now();
+        } else {
+            if(images[i].src.match(/ts=\d+$/)) {
+                images[i].src = images[i].src.replace(/ts=\d+$/, 'ts=' + Date.now());
+            } else {
+                images[i].src = images[i].src + '&ts=' + Date.now();
+            }
+        }
+    }
+}
+
+function init() {
+    this.key = location.protocol + '//' + location.hostname + (location.port != "" ? ":" + location.port : "") + location.pathname;
+    var b = JSON.parse(localStorage.getItem(key)) || {};
+    localStorage.setItem(key, JSON.stringify(b));
+    load_bookmarks();
+    draw_boxes();
+    setInterval(update_images, 45000);
+}
+
+function save_positions(e, u, w) {
+    localStorage.setItem(key + '_positions', JSON.stringify(grids.serialize()));
+}
+
+$(function(){
+    grids = $(".gridster ul").gridster({
+        widget_margins: [5, 5],
+        widget_base_dimensions: [60, 50],
+        draggable: {
+            stop: save_positions
+        },
+        resize: {
+            enabled: true,
+            stop: save_positions
+        },
+        autogrow_cols: true,
+        serialize_params: function(w, p) {return {name: w.attr('id'), size_x: p.size_x, size_y: p.size_y, col: p.col, row: p.row};}
+    }).data('gridster');
+    init();
+});
+</script>
+<script src="asbookmarks.js"></script>
+<link href='//fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
+<style type="text/css">
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #e7e9fd;
+}
+.chart_div {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 95%;
+    z-index: 0;
+}
+.ontop {
+    z-index: 1;
+}
+.butt {
+    opacity: 0.5;
+    display: inline-block;
+    position: absolute;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    background-size: 24px 24px;
+    top: 0;
+}
+.butt:hover {
+    opacity: 1;
+}
+.edit {
+    right: 26px;
+    background: url(edit.svg);
+}
+.delete {
+    right: 0px;
+    background: url(delete.svg);
+}
+.query {
+    top: 10%;
+    position: relative;
+    width: 70%;
+    height: 80%;
+}
+.name {
+    position: relative;
+    left: 1.5%;
+    top: 10%;
+    width: 15%;
+    height: 80%;
+}
+.button {
+    position: relative;
+    top: 10%;
+    height: 80%;
+    width: 13%;
+}
+.store {
+    position: fixed;
+    bottom: 0px;
+    font-size: 20%;
+    width: 80%;
+    height: 10%;
+    left: 10%;
+    overflow: scroll;
+    background-color: #3f51b5;
+    color: white;
+    z-index: 1;
+    opacity: 0.1;
+    filter: blur(5px);
+    -webkit-filter: blur(5px);
+    background-color: #3f51b5;
+    transition: opacity 0.1s ease-in-out;
+}
+.store:hover {
+    opacity: 1.0;
+    filter: blur(0px);
+    -webkit-filter: blur(0px);
+    z-index: 100;
+}
+.box {
+    width: 300px;
+    height: 250px;
+    margin: 5px;
+    overflow: hidden;
+    text-align: center;
+    color: white;
+    background-color: black;
+    font-size: 110%;
+}
+.gridster * {
+  margin:0;
+  padding:0;
+}
+ul {
+  list-style-type: none;
+}
+.gridster {
+    z-index: 10;
+    margin: 10px 0 10px;
+}
+.gridster .gs-w {
+    background: black;
+    cursor: pointer;
+}
+.gridster .player {
+    opacity: 0.3;
+}
+.gridster .preview-holder {
+    -webkit-box-shadow: inset 0px 0px 15px 10px rgba(0,0,0,0.75);
+    -moz-box-shadow: inset 0px 0px 15px 10px rgba(0,0,0,0.75);
+    box-shadow: inset 0px 0px 15px 10px rgba(0,0,0,0.75);
+}
+.editor{
+    position: fixed;
+    width: 80%;
+    left: 10%;
+    top: 0px;
+    height: 50px;
+    z-index: -100;
+    opacity: 0.6;
+    filter: blur(2px);
+    -webkit-filter: blur(2px);
+    background-color: #3f51b5;
+    transition: opacity 0.1s ease-in-out;
+}
+.editor:hover {
+    z-index: 100;
+    opacity: 1;
+    filter: blur(0px);
+    -webkit-filter: blur(0px);
+}
+</style>
+</head>
+<body>
+<div class='editor'>
+  <input type='text' placeholder='HEADER' class='name' id='name'>
+  <input type='text' placeholder='SVG CHART URL' class='query' id='query'>
+  <button class="button" onclick="add_new()">DRAW</button>
+</div>
+<div class="gridster">
+    <ul id="container"></ul>
+</div>
+<div class='store' id='store'></div>
+</body>
+</html>

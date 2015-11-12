@@ -2,3 +2,5 @@ pygal
 tornado
 psutil
 circus
+tornado_mysql
+django-google-charts

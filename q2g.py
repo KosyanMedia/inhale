@@ -1,4 +1,5 @@
 # coding=utf8
+import sys
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler, Application, url
 from argparse import ArgumentParser
