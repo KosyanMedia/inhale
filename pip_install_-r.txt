@@ -4,3 +4,5 @@ psutil
 circus
 tornado_mysql
 django-google-charts
+psycopg2
+momoko
