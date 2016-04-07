@@ -34,11 +34,20 @@ def multi_follow(masks, splitter="\n", interval=1, jump=True, follow=True):
                 elif got < has:
                     # we can read line as two if read while full line is not written into file
                     data = fd.read(has - got)
-                    for line in filter(lambda l: l != '', data.split(splitter)):
+                    lines = data.split(splitter)
+                    good_lines = lines[:-1]
+
+                    # return carriage to the beginning of the parted line
+                    if lines[-1] != '':
+                        new_got = got + (len(data) - len(lines[-1]))
+                        fd.seek(new_got)
+
+                    for line in good_lines:
                         yield mask, file, line
+
                 else: # got == has
                     no_data_count = no_data_count + 1
-    
+
         if files_count == no_data_count:
             if follow:
                 sleep(interval)
@@ -94,7 +103,7 @@ while True:
     patterns = load_config(config)
     target = socket(AF_INET, SOCK_DGRAM)
     sender = partial(logging.info, "%s %s") if dry else target.sendto
-    
+
     for mask, path, line in multi_follow(patterns.keys(), jump=jump, follow=follow):
         if need_to_reload:
             need_to_reload = False
@@ -109,6 +118,6 @@ while True:
                     message[field] = float(message[field])
                 for field, code in pattern['eval'].items():
                     message[field] = eval(code, None, message)
-    
+
                 sender(format_influx(message, pattern), (host, port))
                 break
